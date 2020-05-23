@@ -2,25 +2,35 @@ from logging.config import fileConfig
 
 from sqlalchemy import engine_from_config
 from sqlalchemy import pool
-
 from alembic import context
-from 
+
+import os
+import sys
+path = os.path.realpath(os.path.join(os.path.dirname(__file__), '..'))
+sys.path.insert(0, path)
+
+from db.models import get_psql_dsn, BASE
+from db.config import DB_HOST, DB_NAME, DB_PASSWORD, DB_PORT, DB_USER
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
-config = context.config
 
 # Interpret the config file for Python logging.
 # This line sets up loggers basically.
-fileConfig(config.config_file_name)
 config = context.config
-config.set_main_option('sqlalchemy.url, DB_DSN)
+config.set_main_option('sqlalchemy.url', get_psql_dsn(DB_USER,
+                                                      DB_PASSWORD,
+                                                      DB_HOST,
+                                                      DB_PORT,
+                                                      DB_NAME))
+
+fileConfig(config.config_file_name)
 
 # add your model's MetaData object here
 # for 'autogenerate' support
 # from myapp import mymodel
 # target_metadata = mymodel.Base.metadata
-target_metadata = None
+target_metadata = BASE.metadata
 
 # other values from the config, defined by the needs of env.py,
 # can be acquired:

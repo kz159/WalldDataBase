@@ -4,12 +4,11 @@ Reprsenets all walld models
 from sqlalchemy import (ARRAY, Binary, Boolean, Column, DateTime, Integer,
                         String, func)
 from sqlalchemy.ext.declarative import declarative_base
-from config import DB_HOST, DB_PASSWORD, DB_PORT, DB_USER, DB_NAME
 
 BASE = declarative_base()
 
-DB_DSN = f'postgresql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}'
-
+def get_psql_dsn(user, passw, host, port, db_name):
+    return f'postgresql://{user}:{passw}@{host}:{port}/{db_name}'
 
 class Permissions:
     Admin = 0
@@ -21,7 +20,7 @@ class User(BASE):
     """
     Represents User
     """
-    __tablename__ = 'Users'
+    __tablename__ = 'users'
     user_id = Column(Integer, primary_key=True)
     nickname = Column(String)
     permissions = Column(ARRAY(Integer)) # Accept or decline
@@ -34,8 +33,8 @@ class Picture(BASE):
     """
     Represents picture from our db
     """
-    __tablename__ = "Pictures"
-    pic_id = Column(Integer)
+    __tablename__ = "pictures"
+    pic_id = Column(Integer, primary_key=True)
     height = Column(Integer)
     width = Column(Integer)
     colour_hex = Column(Binary)
