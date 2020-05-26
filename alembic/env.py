@@ -9,8 +9,8 @@ import sys
 path = os.path.realpath(os.path.join(os.path.dirname(__file__), '..'))
 sys.path.insert(0, path)
 
-from db.models import get_psql_dsn, BASE
-from db.config import DB_HOST, DB_NAME, DB_PASSWORD, DB_PORT, DB_USER
+from walld_db.models import get_psql_dsn, BASE
+from walld_db.config import DB_HOST, DB_NAME, DB_PASSWORD, DB_PORT, DB_USER
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
