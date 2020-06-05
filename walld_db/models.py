@@ -3,6 +3,7 @@ Reprsenets all walld models
 """
 from sqlalchemy import (ARRAY, Binary, Boolean, Column, DateTime, Integer,
                         String, JSON, func, ForeignKey)
+from sqlalchemy.ext.mutable import MutableDict
 from sqlalchemy.ext.declarative import declarative_base
 
 BASE = declarative_base()
@@ -16,8 +17,8 @@ class ModStates:
     got_picture = 1
     choosing_category = 2
     making_category = 3
-    choosing_sub_directory = 4
-    making_sub_directory = 5
+    choosing_sub_category = 4
+    making_sub_category = 5
     adding_tags = 6
 
 
@@ -57,7 +58,7 @@ class Moderator(BASE):
     __tablename__ = 'moderators'
     mod_id = Column(Integer, ForeignKey('users.user_id'), primary_key=True)
     pics_accepted = Column(ARRAY(Integer)) #  id of pics
-    json_review = Column(JSON) # Хранить тут что ли всю инфу о пикче??
+    json_review = Column(MutableDict.as_mutable(JSON)) # Хранить тут что ли всю инфу о пикче??
     tg_state = Column(Integer, default=0)
     last_message = Column(Integer)
 
