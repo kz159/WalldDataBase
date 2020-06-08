@@ -1,10 +1,11 @@
 """
 Reprsenets all walld models
 """
-from sqlalchemy import (ARRAY, Binary, Boolean, Column, DateTime, Integer,
-                        String, JSON, func, ForeignKey)
-from sqlalchemy.ext.mutable import MutableDict
+from sqlalchemy import (ARRAY, JSON, Binary, Column, DateTime, ForeignKey,
+                        Integer, String, func, Table)
+from sqlalchemy.orm import relationship, backref
 from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.ext.mutable import MutableDict
 
 BASE = declarative_base()
 
@@ -19,8 +20,9 @@ class ModStates:
     making_category = 3
     choosing_sub_category = 4
     making_sub_category = 5
-    adding_tags = 6
-
+    choosing_tags = 6
+    making_tags = 7
+    done = 8
 
 class AdminStates:
     available = 0
@@ -57,7 +59,7 @@ class Moderator(BASE):
     """
     __tablename__ = 'moderators'
     mod_id = Column(Integer, ForeignKey('users.user_id'), primary_key=True)
-    pics_accepted = Column(ARRAY(Integer)) #  id of pics
+    pics_accepted = Column(Integer, default=0) #  id of pics
     json_review = Column(MutableDict.as_mutable(JSON)) # Хранить тут что ли всю инфу о пикче??
     tg_state = Column(Integer, default=0)
     last_message = Column(Integer)
@@ -71,6 +73,7 @@ class Category(BASE):
     category_id = Column(Integer, primary_key=True)
     category_name = Column(String, unique=True)
 
+
 class SubCategory(BASE):
     """
     Represents list of subcategories for each category
@@ -81,6 +84,18 @@ class SubCategory(BASE):
     sub_category_name = Column(String, unique=True)
 
 
+class Tag(BASE):
+    __tablename__ = "tags"
+    tag_id = Column(Integer, primary_key=True)
+    tag_name = Column(String)
+    #tag_name = relationship("Picture", back_populates="tags")
+
+assosiation = Table('assosiation',
+                    BASE.metadata,
+                    Column('tag_id', Integer, ForeignKey('tags.tag_id')),
+                    Column('pic_id', Integer, ForeignKey('pictures.pic_id'))
+)
+
 class Picture(BASE):
     """
     Represents picture from our db
@@ -88,11 +103,12 @@ class Picture(BASE):
     __tablename__ = "pictures"
     pic_id = Column(Integer, primary_key=True)
     uploader_id = Column(Integer, ForeignKey('users.user_id'))
+    mod_review_id = Column(Integer, ForeignKey('moderators.mod_id'))
     height = Column(Integer)
     width = Column(Integer)
     colour_hex = Column(Binary)
     category = Column(Integer, ForeignKey('categories.category_id'))
     sub_category = Column(Integer, ForeignKey('sub_categories.sub_category_id'))
-    tags = Column(ARRAY(String))
-    source = Column(String)
+    tags = relationship('Tag', secondary=assosiation)
+    source_url = Column(String)
     service = Column(String)

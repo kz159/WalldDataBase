@@ -17,6 +17,7 @@ if [ $? -eq 0 ]
 then
   sleep 3
   echo "Db and RMQ ready, making migrations"
+  alembic revision --autogenerate -m "fistssas"
   alembic upgrade head
   echo "thats all, use psql -h localhost $DB_PASSWORD"
 else
