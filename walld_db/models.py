@@ -36,7 +36,7 @@ class User(BASE):
     __tablename__ = 'users'
     user_id = Column(Integer, primary_key=True)
     nickname = Column(String)
-    telegram_id = Column(Integer)
+    telegram_id = Column(Integer, unique=True)
     pics_uploaded = Column(Integer, default=0)
     register_date = Column(DateTime, server_default=func.now())
 
@@ -47,7 +47,8 @@ class Admin(BASE):
     with their states etc
     """
     __tablename__ = 'admins'
-    admin_id = Column(Integer, ForeignKey('users.user_id'), primary_key=True)
+    admin_id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey('users.user_id'))
     tg_state = Column(Integer, default=0)
 
 
@@ -58,7 +59,8 @@ class Moderator(BASE):
     will go here
     """
     __tablename__ = 'moderators'
-    mod_id = Column(Integer, ForeignKey('users.user_id'), primary_key=True)
+    mod_id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey('users.user_id'))
     pics_accepted = Column(Integer, default=0) #  id of pics
     json_review = Column(MutableDict.as_mutable(JSON)) # Хранить тут что ли всю инфу о пикче??
     tg_state = Column(Integer, default=0)
