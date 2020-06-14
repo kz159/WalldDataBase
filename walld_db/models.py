@@ -1,11 +1,14 @@
 """
 Reprsenets all walld models
 """
-from sqlalchemy import (ARRAY, JSON, Binary, Column, DateTime, ForeignKey,
-                        Integer, String, func, Table)
-from sqlalchemy.orm import relationship, backref
+from typing import Optional
+
+from pydantic import BaseModel
+from sqlalchemy import (JSON, Binary, Column, DateTime, ForeignKey,
+                        Integer, String, Table, func)
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.ext.mutable import MutableDict
+from sqlalchemy.orm import relationship
 
 BASE = declarative_base()
 
@@ -114,3 +117,25 @@ class Picture(BASE):
     tags = relationship('Tag', secondary=assosiation)
     source_url = Column(String)
     service = Column(String)
+
+
+class RejectedPicture(BASE):
+    """
+    Represents rejected pictures by moderators
+    """
+    __tablename__ = 'rejected_pictures'
+    id = Column(Integer, primary_key=True)
+    mod_id = Column(Integer, ForeignKey('moderators.mod_id'))
+    uploader = Column(String) # User or crawler
+    url = Column(String, nullable=False)
+
+class PictureValid(BaseModel):
+    service: str
+    id: str
+    url: str
+    author: str
+    height: str
+    width: str
+    download_url: str
+    preview_url: str
+    colours: Optional[str]
