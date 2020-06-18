@@ -5,7 +5,7 @@ from typing import Optional
 
 from pydantic import BaseModel
 from sqlalchemy import (JSON, Binary, Column, DateTime, ForeignKey,
-                        Integer, String, Table, func)
+                        Integer, String, Table, func, ARRAY)
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.ext.mutable import MutableDict
 from sqlalchemy.orm import relationship
@@ -109,33 +109,34 @@ class Picture(BASE):
     pic_id = Column(Integer, primary_key=True)
     uploader_id = Column(Integer, ForeignKey('users.user_id'))
     mod_review_id = Column(Integer, ForeignKey('moderators.mod_id'))
+    service = Column(String)
     height = Column(Integer)
     width = Column(Integer)
-    colour_hex = Column(Binary)
+    colours = Column(ARRAY(Binary))
     category = Column(Integer, ForeignKey('categories.category_id'))
     sub_category = Column(Integer, ForeignKey('sub_categories.sub_category_id'))
     tags = relationship('Tag', secondary=assosiation)
     source_url = Column(String)
-    service = Column(String)
+    path = Column(String)
+    url = Column(String)
 
 
-class RejectedPicture(BASE):
+class RejectedPicture(BASE): 
     """
     Represents rejected pictures by moderators
     """
+    # TODO ПЕРЕИМЕНОВАТЬ В seenpictures что бы
+    #  сразу иметь ввиду что мы это уже видели
     __tablename__ = 'rejected_pictures'
     id = Column(Integer, primary_key=True)
     mod_id = Column(Integer, ForeignKey('moderators.mod_id'))
     uploader = Column(String) # User or crawler
     url = Column(String, nullable=False)
 
-class PictureValid(BaseModel):
+class PictureValid(BaseModel): # TODO ОТРАЗИТЬ ВСЕ ИЗМЕНЕНИЯ
     service: str
-    id: str
-    url: str
-    author: str
-    height: str
-    width: str
+    height: int
+    width: int
+    source_url: str
     download_url: str
     preview_url: str
-    colours: Optional[str]

@@ -1,26 +1,25 @@
 from contextlib import contextmanager
 from random import choice
-from time import sleep
 
 import pika
 import sqlalchemy as sa
 from sqlalchemy.orm import sessionmaker
 from telebot import types
 from telebot.types import InlineKeyboardButton, InlineKeyboardMarkup
-from walld_db.models import (Category, SubCategory, Tag, User,
-                             get_psql_dsn, Moderator, RejectedPicture)
+from walld_db.models import (Category, Moderator, RejectedPicture, SubCategory,
+                             Tag, User, get_psql_dsn)
 
 # TODO ATEXIT STUFF
 
 class DB:
-    def __init__(self, db_user, db_passwd, db_host, db_port, db_name):
-        dsn = get_psql_dsn(db_user, db_passwd, db_host, db_port, db_name)
-        self.engine = self.get_engine(dsn)
+    def __init__(self, user, passwd, host, port, name, echo=False):
+        dsn = get_psql_dsn(user, passwd, host, port, name)
+        self.engine = self.get_engine(dsn, echo=echo)
         self.session_maker = sessionmaker(bind=self.engine)
 
     @staticmethod
-    def get_engine(dsn):
-        return sa.create_engine(dsn, echo=True)
+    def get_engine(dsn, echo):
+        return sa.create_engine(dsn, echo=echo)
 
     @contextmanager
     def get_connection(self):
@@ -32,7 +31,7 @@ class DB:
         session = self.session_maker(expire_on_commit=expire)
         try:
             yield session
-        except ValueError:
+        except ValueError: # TODO Более качественную обработку ошибок бы
             session.rollback()
         finally:
             if commit:
@@ -61,15 +60,46 @@ class DB:
     @property
     def tags(self) -> list:
         with self.get_session(commit=False) as ses:
-            tags = ses.query(Tag.tag_name)
-        return [i[0] for i in tags]
+            return ses.query(Tag).all()
 
-    def get_category(self, category_name, session=None):
+    @property
+    def named_tags(self) -> list:
+        with self.get_session(commit=False) as ses:
+            tags = ses.query(Tag.tag_name)
+            return [i[0] for i in tags]
+
+    def get_tag(self, tag_id=None, tag_name=None, session=None):
+        if not session: # TODO Хуйня, переделай
+            with self.get_session(commit=False) as ses:
+                if tag_name:
+                    return ses.query(Tag).filter_by(tag_name=tag_name).one_or_none()
+                if tag_id:
+                    return ses.query(Tag).filter_by(tag_id=tag_id).one_or_none()
+        if tag_name:
+            return session.query(Tag).filter_by(tag_name=tag_name).one_or_none()
+        if tag_id:
+            return session.query(Tag).filter_by(tag_id=tag_id).one_or_none()
+
+    def get_sub_category(self, sub_category_name=None, sub_cat_id=None, session=None):
+        if session: # TODO переделать на более вменяемые функции
+            cat = session.query(SubCategory).filter_by(sub_category_name=category_name).one_or_none()
+        else:
+            with self.get_session(commit=False) as ses:
+                if sub_category_name:
+                    cat = ses.query(SubCategory).filter_by(sub_category_name=sub_category_name).one_or_none()
+                elif sub_cat_id:
+                    cat = ses.query(SubCategory).filter_by(sub_category_id=sub_cat_id).one_or_none()
+        return cat
+
+    def get_category(self, category_name=None, cat_id=None, session=None):
         if session:
             cat = session.query(Category).filter_by(category_name=category_name).one_or_none()
         else:
             with self.get_session(commit=False) as ses:
-                cat = ses.query(Category).filter_by(category_name=category_name).one_or_none()
+                if category_name:
+                    cat = ses.query(Category).filter_by(category_name=category_name).one_or_none()
+                elif cat_id:
+                    cat = ses.query(Category).filter_by(category_id=cat_id).one_or_none()
         return cat
 
     def get_state(self, tg_id, table): # TODO add sessions
@@ -88,15 +118,16 @@ class DB:
             filter(User.telegram_id==tg_id).one()
         return l
 
-    def get_sub_categories(self, category) -> list:
+    def get_sub_categories(self, name=None, cat_id=None) -> list:
         with self.get_session(commit=False) as ses:
-            cat_id = self.get_category(category).category_id
+            if name:
+                cat_id = self.get_category(name).category_id
+            
             sub_cats = ses.query(SubCategory).\
                        filter_by(category_id=cat_id).\
                        all()
             stuff = [i.sub_category_name for i in sub_cats]
             return stuff
-    
 
 
 class Rmq:
@@ -112,16 +143,15 @@ class Rmq:
                                                 heartbeat=60)
         while True:
             try:
-                self.connection = pika.BlockingConnection()
+                self.connection = pika.BlockingConnection(self.params)
                 break
             except pika.exceptions.AMQPConnectionError:
-                sleep(3)
                 continue
         self.channel = self.connection.channel()
         self.channel.queue_declare(queue='check_out', durable=True)
         self.channel.queue_declare(queue='go_sql', durable=True)
 
-    def get_message(self, amount: int, queue_name):
+    def get_message(self, amount: int, queue_name: str):
         self.channel.basic_qos(prefetch_count=amount)
         method, props, body = next(self.channel.consume(queue_name))
         self.channel.cancel()
@@ -149,7 +179,7 @@ def gen_inline_markup(cb_yes='cb_yes', cb_no='cb_no'):
                InlineKeyboardButton(gen_answers(False), callback_data=cb_no))
     return markup
 
-def gen_markup(stuff=None): # TODO мне не нравится этот кстыль с deep
+def gen_markup(stuff=None):
     markup = types.ReplyKeyboardMarkup()
     if stuff:
         for i in stuff:

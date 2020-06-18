@@ -4,9 +4,12 @@ set -ex
 if [ -n "$DB_HOST" ]; then
   echo ok
 else
-  DB_HOST=localhost
+  export DB_HOST=localhost
 fi
+export DB_PASSWORD=1234
 PGPASSWORD=$DB_PASSWORD
+export DB_USER=postgres
+export DB_NAME=postgres
 
 docker stop test_db || true
 docker stop rmq || true
