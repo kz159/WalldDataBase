@@ -133,6 +133,15 @@ class RejectedPicture(BASE):
     uploader = Column(String) # User or crawler
     url = Column(String, nullable=False)
 
+class SeenPicture(BASE):
+    """
+    Represents url sources that
+    was already seen by crawlers
+    """
+    __tablename__ = 'seen_pictures'
+    id = Column(Integer, primary_key=True)
+    url = Column(String, nullable=False, unique=True)
+
 class PictureValid(BaseModel): # TODO ОТРАЗИТЬ ВСЕ ИЗМЕНЕНИЯ
     service: str
     height: int

@@ -7,7 +7,7 @@ from sqlalchemy.orm import sessionmaker
 from telebot import types
 from telebot.types import InlineKeyboardButton, InlineKeyboardMarkup
 from walld_db.models import (Category, Moderator, RejectedPicture, SubCategory,
-                             Tag, User, get_psql_dsn)
+                             Tag, User, get_psql_dsn, SeenPicture)
 
 # TODO ATEXIT STUFF
 
@@ -50,6 +50,19 @@ class DB:
             pics = ses.query(RejectedPicture.url).all()
             pics = [i[0] for i in pics] or []
             return pics
+
+    @property
+    def seen_pictures(self):
+        with self.get_session(commit=False) as ses:
+            pics = ses.query(SeenPicture.url).all()
+            pics = [i[0] for i in pics] or []
+            return pics
+
+# TODO GETTER SETTER FOR PICTURES
+    def add_seen_pic(self, url):
+        with self.get_session() as ses:
+            ses.add(SeenPicture(url=url))
+
 
     @property
     def users(self) -> list:
