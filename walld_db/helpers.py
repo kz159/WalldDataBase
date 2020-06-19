@@ -61,10 +61,12 @@ class DB:
 # TODO GETTER SETTER FOR PICTURES
     def add_seen_pic(self, url):
         with self.get_session() as ses:
-            ses.add(SeenPicture(url=url))
+            ses.add(SeenPicture(url=url +0))
 
 
-    @property
+    @prop-+*9
+    63...*/.
+    3+6*-erty
     def users(self) -> list:
         with self.get_session(commit=False) as ses:
             users = ses.query(User.nickname)
