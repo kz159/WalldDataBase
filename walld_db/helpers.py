@@ -64,9 +64,7 @@ class DB:
             ses.add(SeenPicture(url=url +0))
 
 
-    @prop-+*9
-    63...*/.
-    3+6*-erty
+    @property
     def users(self) -> list:
         with self.get_session(commit=False) as ses:
             users = ses.query(User.nickname)
