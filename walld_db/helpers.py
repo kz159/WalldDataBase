@@ -1,21 +1,27 @@
+'''
+Module with usefull classes for all microservices
+'''
 from contextlib import contextmanager
-from random import choice
+import logging
+from time import sleep
 
 import pika
 import sqlalchemy as sa
 from sqlalchemy.orm import sessionmaker
-from telebot import types
-from telebot.types import InlineKeyboardButton, InlineKeyboardMarkup
-from walld_db.models import (Category, Moderator, RejectedPicture, SubCategory,
-                             Tag, User, get_psql_dsn, SeenPicture)
+from walld_db.models import (Category, Moderator, RejectedPicture, SeenPicture,
+                             SubCategory, Tag, User, get_psql_dsn)
 
 # TODO ATEXIT STUFF
+LOG = logging.getLogger(__name__)
+
 
 class DB:
     def __init__(self, user, passwd, host, port, name, echo=False):
         dsn = get_psql_dsn(user, passwd, host, port, name)
+        LOG.info('connecting to db...')
         self.engine = self.get_engine(dsn, echo=echo)
         self.session_maker = sessionmaker(bind=self.engine)
+        LOG.info('successfully connected to db!') # TODO неа, не нравки
 
     @staticmethod
     def get_engine(dsn, echo):
@@ -95,7 +101,7 @@ class DB:
 
     def get_sub_category(self, sub_category_name=None, sub_cat_id=None, session=None):
         if session: # TODO переделать на более вменяемые функции
-            cat = session.query(SubCategory).filter_by(sub_category_name=category_name).one_or_none()
+            cat = session.query(SubCategory).filter_by(sub_category_name=sub_category_name).one_or_none()
         else:
             with self.get_session(commit=False) as ses:
                 if sub_category_name:
@@ -154,15 +160,20 @@ class Rmq:
                                                 port=port,
                                                 credentials=self.creds,
                                                 heartbeat=60)
+        LOG.info('connecting to rmq....')
         while True:
             try:
                 self.connection = pika.BlockingConnection(self.params)
                 break
-            except pika.exceptions.AMQPConnectionError:
+            except pika.exceptions.AMQPConnectionError as traceback:
+                LOG.error('cant connect to rmq!')
+                sleep(1)
                 continue
+
         self.channel = self.connection.channel()
         self.channel.queue_declare(queue='check_out', durable=True)
         self.channel.queue_declare(queue='go_sql', durable=True)
+        LOG.info('successfully connected to rmq')
 
     def get_message(self, amount: int, queue_name: str):
         self.channel.basic_qos(prefetch_count=amount)
@@ -174,38 +185,3 @@ class Rmq:
     @property
     def durable(self):
         return pika.BasicProperties(delivery_mode=2)
-
-
-def gen_answers(answer: bool) -> str:
-    if answer:
-        ll = ['Чотко', 'Сок', 'Невъебенно']
-        emo = ['👌', '👌', '✅']
-    else:
-        ll = ["Так не пойдет", "Неа"]
-        emo = ["❌", '👎']
-    return f'{choice(ll)} - {choice(emo)}' # nosec
-
-def gen_inline_markup(cb_yes='cb_yes', cb_no='cb_no'):
-    markup = InlineKeyboardMarkup()
-    markup.row_width = 2
-    markup.add(InlineKeyboardButton(gen_answers(True), callback_data=cb_yes),
-               InlineKeyboardButton(gen_answers(False), callback_data=cb_no))
-    return markup
-
-def gen_markup(stuff=None):
-    markup = types.ReplyKeyboardMarkup()
-    if stuff:
-        for i in stuff:
-            markup.row(i)
-    else: 
-        markup = types.ReplyKeyboardRemove()
-    return markup
-
-def prepare_json_review(body):
-    text = (f'Сервис - {body["service"]}\n'
-            f'ШиринаХВысота - {body["width"]}X{body["height"]}\n'
-            f'Превью урл - \n{body["preview_url"]}\n'
-            f'Категория - {body["category"]}\n'
-            f'Под категория - {body["sub_category"]}\n'
-            f'Тэги - {body["tags"]}')
-    return text

@@ -1,4 +1,5 @@
 from os import getenv
+import logging
 
 DB_HOST = getenv('DB_HOST', "localhost")
 DB_PORT = getenv("DB_PORT", "5432")
@@ -13,3 +14,5 @@ assert DB_PASSWORD
 DB_NAME = getenv("DB_NAME")
 
 assert DB_NAME
+
+

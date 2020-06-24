@@ -1,7 +1,6 @@
 """
 Reprsenets all walld models
 """
-from typing import Optional
 
 from pydantic import BaseModel
 from sqlalchemy import (JSON, Binary, Column, DateTime, ForeignKey,
@@ -142,7 +141,7 @@ class SeenPicture(BASE):
     id = Column(Integer, primary_key=True)
     url = Column(String, nullable=False, unique=True)
 
-class PictureValid(BaseModel): # TODO ОТРАЗИТЬ ВСЕ ИЗМЕНЕНИЯ
+class PictureValid(BaseModel): # TODO ОТРАЗИТЬ ВСЕ ИЗМЕНЕНИЯ И УБРАТЬ ЭТО В ГРАББЕРА
     service: str
     height: int
     width: int
