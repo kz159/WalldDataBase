@@ -76,6 +76,7 @@ class Category(BASE):
     __tablename__ = "categories"
     category_id = Column(Integer, primary_key=True)
     category_name = Column(String, unique=True)
+    sub_categories = relationship("SubCategory")
 
 
 class SubCategory(BASE):

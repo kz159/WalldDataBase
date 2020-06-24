@@ -67,7 +67,7 @@ class DB:
 # TODO GETTER SETTER FOR PICTURES
     def add_seen_pic(self, url):
         with self.get_session() as ses:
-            ses.add(SeenPicture(url=url +0))
+            ses.add(SeenPicture(url=url))
 
 
     @property
@@ -99,17 +99,6 @@ class DB:
         if tag_id:
             return session.query(Tag).filter_by(tag_id=tag_id).one_or_none()
 
-    def get_sub_category(self, sub_category_name=None, sub_cat_id=None, session=None):
-        if session: # TODO переделать на более вменяемые функции
-            cat = session.query(SubCategory).filter_by(sub_category_name=sub_category_name).one_or_none()
-        else:
-            with self.get_session(commit=False) as ses:
-                if sub_category_name:
-                    cat = ses.query(SubCategory).filter_by(sub_category_name=sub_category_name).one_or_none()
-                elif sub_cat_id:
-                    cat = ses.query(SubCategory).filter_by(sub_category_id=sub_cat_id).one_or_none()
-        return cat
-
     def get_category(self, category_name=None, cat_id=None, session=None):
         if session:
             cat = session.query(Category).filter_by(category_name=category_name).one_or_none()
@@ -136,17 +125,6 @@ class DB:
             join(Moderator, User.user_id == Moderator.user_id).\
             filter(User.telegram_id==tg_id).one()
         return l
-
-    def get_sub_categories(self, name=None, cat_id=None) -> list:
-        with self.get_session(commit=False) as ses:
-            if name:
-                cat_id = self.get_category(name).category_id
-            
-            sub_cats = ses.query(SubCategory).\
-                       filter_by(category_id=cat_id).\
-                       all()
-            stuff = [i.sub_category_name for i in sub_cats]
-            return stuff
 
 
 class Rmq:
