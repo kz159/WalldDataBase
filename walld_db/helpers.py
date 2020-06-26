@@ -7,9 +7,9 @@ from time import sleep
 
 import pika
 import sqlalchemy as sa
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.orm import sessionmaker, raiseload
 from walld_db.models import (Category, Moderator, RejectedPicture, SeenPicture,
-                             SubCategory, Tag, User, get_psql_dsn)
+                             Tag, User, get_psql_dsn, Picture, SubCategory)
 
 # TODO ATEXIT STUFF
 LOG = logging.getLogger(__name__)
@@ -50,12 +50,30 @@ class DB:
             cats = ses.query(Category.category_name).all()
             return [i[0] for i in cats]
 
-    @property
+    @property # Удаление?
     def rejected_pictures(self):
         with self.get_session(commit=False) as ses:
             pics = ses.query(RejectedPicture.url).all()
             pics = [i[0] for i in pics] or []
             return pics
+
+    @property
+    def picture_urls(self):
+        with self.get_session(commit=False) as ses:
+            pics = ses.query(Picture.url).all()
+            pics = [i[0] for i in pics] or []
+            return pics
+
+    @property
+    def picture_objects(self):
+        with self.get_session(commit=False) as ses:
+            pics = ses.query(Picture).all()
+            return pics
+
+    @property
+    def categories_objects(self):
+        with self.get_session(commit=False) as ses:
+            return ses.query(Category).all()
 
     @property
     def seen_pictures(self):
@@ -110,6 +128,19 @@ class DB:
                     cat = ses.query(Category).filter_by(category_id=cat_id).one_or_none()
         return cat
 
+    def get_sub_category(self, sub_category_name=None, sub_cat_id=None, session=None):
+        if session: # TODO переделать на более вменяемые функции
+            cat = session.query(SubCategory).filter_by(sub_category_name=sub_category_name).one_or_none()
+        else:
+            with self.get_session(commit=False) as ses:
+                if sub_category_name:
+                    cat = ses.query(SubCategory).filter_by(sub_category_name=sub_category_name).one_or_none()
+                elif sub_cat_id:
+                    cat = ses.query(SubCategory).filter_by(sub_category_id=sub_cat_id).one_or_none()
+        return cat
+
+
+
     def get_state(self, tg_id, table): # TODO add sessions
         with self.get_session(commit=False) as ses:
             l = ses.query(User, table.tg_state).\
@@ -143,7 +174,7 @@ class Rmq:
             try:
                 self.connection = pika.BlockingConnection(self.params)
                 break
-            except pika.exceptions.AMQPConnectionError as traceback:
+            except pika.exceptions.AMQPConnectionError:
                 LOG.error('cant connect to rmq!')
                 sleep(1)
                 continue

@@ -2,7 +2,8 @@
 Reprsenets all walld models
 """
 
-from pydantic import BaseModel
+from pydantic import BaseModel, constr
+from typing import List, Optional
 from sqlalchemy import (JSON, Binary, Column, DateTime, ForeignKey,
                         Integer, String, Table, func, ARRAY)
 from sqlalchemy.ext.declarative import declarative_base
@@ -76,7 +77,7 @@ class Category(BASE):
     __tablename__ = "categories"
     category_id = Column(Integer, primary_key=True)
     category_name = Column(String, unique=True)
-    sub_categories = relationship("SubCategory")
+    sub_categories = relationship("SubCategory", lazy='joined')
 
 
 class SubCategory(BASE):
@@ -112,7 +113,7 @@ class Picture(BASE):
     service = Column(String)
     height = Column(Integer)
     width = Column(Integer)
-    colours = Column(ARRAY(Binary))
+    colours = Column(ARRAY(String))
     category = Column(Integer, ForeignKey('categories.category_id'))
     sub_category = Column(Integer, ForeignKey('sub_categories.sub_category_id'))
     tags = relationship('Tag', secondary=assosiation)
