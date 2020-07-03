@@ -7,7 +7,7 @@ from time import sleep
 
 import pika
 import sqlalchemy as sa
-from sqlalchemy.orm import sessionmaker, raiseload
+from sqlalchemy.orm import sessionmaker, Query
 from walld_db.models import (Category, Moderator, RejectedPicture, SeenPicture,
                              Tag, User, get_psql_dsn, Picture, SubCategory)
 
@@ -87,7 +87,6 @@ class DB:
         with self.get_session() as ses:
             ses.add(SeenPicture(url=url))
 
-
     @property
     def users(self) -> list:
         with self.get_session(commit=False) as ses:
@@ -105,6 +104,26 @@ class DB:
             tags = ses.query(Tag.tag_name)
             return [i[0] for i in tags]
 
+    def get_pics(self, **questions):
+
+        cat = questions.get('category')
+        sub_cat = questions.get('sub_category')
+        tags = questions.get('tags')
+        colours = questions.get('colours')
+
+        with self.get_session(commit=False) as ses:
+            pics = ses.query(Picture)
+            if cat:
+                cat = self.get_category(category_name=cat, session=ses)
+                pics = pics.filter_by(category=getattr(cat, 'category_id', None))
+            if sub_cat:
+                sub_cat = self.get_sub_category(sub_category_name=sub_cat)
+                pics = pics.filter_by(sub_category=sub_cat)
+
+            # TODO colours, tags
+
+        return pics.all()
+
     def get_tag(self, tag_id=None, tag_name=None, session=None):
         if not session: # TODO Хуйня, переделай
             with self.get_session(commit=False) as ses:
@@ -118,28 +137,31 @@ class DB:
             return session.query(Tag).filter_by(tag_id=tag_id).one_or_none()
 
     def get_category(self, category_name=None, cat_id=None, session=None):
+        if category_name:
+            query = Query(Category).filter_by(category_name=category_name)
+        elif cat_id:
+            query = Query(Category).filter_by(category_id=cat_id)
+
         if session:
-            cat = session.query(Category).filter_by(category_name=category_name).one_or_none()
+            cat = query.with_session(session)
         else:
             with self.get_session(commit=False) as ses:
-                if category_name:
-                    cat = ses.query(Category).filter_by(category_name=category_name).one_or_none()
-                elif cat_id:
-                    cat = ses.query(Category).filter_by(category_id=cat_id).one_or_none()
-        return cat
-
+                cat = query.with_session(ses)
+        return cat.one_or_none()
+# TODO squash that three functions!
     def get_sub_category(self, sub_category_name=None, sub_cat_id=None, session=None):
-        if session: # TODO переделать на более вменяемые функции
-            cat = session.query(SubCategory).filter_by(sub_category_name=sub_category_name).one_or_none()
+        if sub_category_name: # В разы лучше!
+            query = Query(SubCategory).filter_by(sub_category_name=sub_category_name)
+        elif sub_cat_id:
+            query = Query(SubCategory).filter_by(sub_category_id=sub_cat_id)
+
+        if session:
+            cat = query.with_session(session)
         else:
             with self.get_session(commit=False) as ses:
-                if sub_category_name:
-                    cat = ses.query(SubCategory).filter_by(sub_category_name=sub_category_name).one_or_none()
-                elif sub_cat_id:
-                    cat = ses.query(SubCategory).filter_by(sub_category_id=sub_cat_id).one_or_none()
-        return cat
+                cat = query.with_session(ses)
 
-
+        return cat.one()
 
     def get_state(self, tg_id, table): # TODO add sessions
         with self.get_session(commit=False) as ses:

@@ -14,9 +14,11 @@ export DB_NAME=postgres
 docker stop test_db || true
 docker stop rmq || true
 docker stop aku_aku || true
-docker run -d --rm -p 5432:5432 -e POSTGRES_PASSWORD=$DB_PASSWORD --name test_db postgres
-docker run -d --rm -p 5672:5672 -p 15672:15672 --name rmq  rabbitmq:management-alpine
-docker run -d --rm -e RMQ_HOST=192.168.1.6 --name aku_aku aku_aku
+docker stop pexels || true
+docker run -d --rm -p 5432:5432 -e POSTGRES_PASSWORD=$DB_PASSWORD --log-driver=journald --name test_db postgres
+docker run -d --rm -p 5672:5672 -p 15672:15672 --name rmq --log-driver=journald rabbitmq:management-alpine
+docker run -d --rm -e RMQ_HOST=192.168.1.6  -e DB_HOST=192.168.1.6 --name aku_aku --log-driver=journald aku_aku
+docker run -d --rm -e RMQ_HOST=192.168.1.6 -e DB_HOST=192.168.1.6 -e API=563492ad6f917000010000011bc9ae20b2ea4640873fdd836c929c8b --name pexels --log-driver=journald pexels
 if [ $? -eq 0 ]
 then
   sleep 3
