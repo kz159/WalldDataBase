@@ -55,7 +55,7 @@ class DB:
         with self.get_session(commit=False) as ses:
             pics = ses.query(RejectedPicture.url).all()
             pics = [i[0] for i in pics] or []
-            return pics
+            return
 
     @property
     def picture_urls(self):
@@ -63,6 +63,11 @@ class DB:
             pics = ses.query(Picture.url).all()
             pics = [i[0] for i in pics] or []
             return pics
+
+    # @property https://www.depesz.com/2007/09/16/my-thoughts-on-getting-random-row/
+    # def random_pic(self):
+    #     with self.get_session(commit=False) as ses:
+    #         ses.
 
     @property
     def picture_objects(self):
@@ -191,27 +196,36 @@ class Rmq:
                                                 port=port,
                                                 credentials=self.creds,
                                                 heartbeat=60)
-        LOG.info('connecting to rmq....')
-        while True:
-            try:
-                self.connection = pika.BlockingConnection(self.params)
-                break
-            except pika.exceptions.AMQPConnectionError:
-                LOG.error('cant connect to rmq!')
-                sleep(1)
-                continue
-
-        self.channel = self.connection.channel()
+        self.connect()
         self.channel.queue_declare(queue='check_out', durable=True)
         self.channel.queue_declare(queue='go_sql', durable=True)
         LOG.info('successfully connected to rmq')
 
     def get_message(self, amount: int, queue_name: str):
-        self.channel.basic_qos(prefetch_count=amount)
-        method, props, body = next(self.channel.consume(queue_name))
-        self.channel.cancel()
-        self.channel.basic_ack(method.delivery_tag)
+        while True:
+            try:
+                self.channel.basic_qos(prefetch_count=amount)
+                method, props, body = next(self.channel.consume(queue_name))
+                self.channel.cancel()
+                self.channel.basic_ack(method.delivery_tag)
+                break
+            except pika.exceptions.StreamLostError:
+                LOG.warning('server missed our heartbeats!, reconnecting...')
+                self.connect()
+                continue
         return body
+
+    def connect(self):
+        while True:
+            try:
+                LOG.info('connecting to rmq....')
+                self.connection = pika.BlockingConnection(self.params)
+                self.channel = self.connection.channel()
+                break
+            except pika.exceptions.AMQPConnectionError:
+                LOG.error('cant connect to rmq!')
+                sleep(1.5)
+                continue
 
     @property
     def durable(self):
