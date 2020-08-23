@@ -120,10 +120,10 @@ class DB:
             pics = ses.query(Picture)
             if cat:
                 cat = self.get_category(category_name=cat, session=ses)
-                pics = pics.filter_by(category=getattr(cat, 'category_id', None))
+                pics.filter_by(category=getattr(cat, 'category_id', None))
             if sub_cat:
                 sub_cat = self.get_sub_category(sub_category_name=sub_cat)
-                pics = pics.filter_by(sub_category=sub_cat)
+                pics.filter_by(sub_category=getattr(sub_cat, 'category_id', None))
 
             # TODO colours, tags
 
