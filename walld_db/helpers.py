@@ -48,10 +48,10 @@ class DB:
     @property
     def categories(self):
         with self.get_session(commit=False) as ses:
-            cats = ses.query(Category.category_name).all()
+            cats = ses.query(Category.name).all()
             return [i[0] for i in cats]
 
-    @property # Удаление?
+    @property  # Удаление?
     def rejected_pictures(self):
         with self.get_session(commit=False) as ses:
             pics = ses.query(RejectedPicture.url).all()
@@ -96,7 +96,7 @@ class DB:
     @property
     def users(self) -> List[str]:
         with self.get_session(commit=False) as ses:
-            users = ses.query(User.nickname)
+            users = ses.query(User.name)
         return [i[0] for i in users]
 
     @property
@@ -107,7 +107,7 @@ class DB:
     @property
     def named_tags(self) -> List:
         with self.get_session(commit=False) as ses:
-            tags = ses.query(Tag.tag_name)
+            tags = ses.query(Tag.name)
             return [i[0] for i in tags]
 
     def get_pics(self, cat: Optional[str] = None,  # TODO NOT STRINGS
@@ -135,7 +135,7 @@ class DB:
         if tag_id:
             query = Query(Tag).filter_by(tag_id=tag_id)
         elif tag_name:
-            query = Query(Tag).filter_by(tag_name=tag_name)
+            query = Query(Tag).filter_by(name=tag_name)
         else:
             return
 
@@ -150,20 +150,21 @@ class DB:
     def get_row(self, table, session=None, **kwargs):
         query = Query(table)
         query.filter_by(**kwargs)
+
         if session:
             result = query.with_session(session)
+
         else:
             with self.get_session(commit=False) as ses:
                 result = query.with_session(ses)
 
         return result.one_or_none()
 
-
     def get_category(self, category_name=None, cat_id=None, session=None):
         if category_name:
-            query = Query(Category).filter_by(category_name=category_name)
+            query = Query(Category).filter_by(name=category_name)
         elif cat_id:
-            query = Query(Category).filter_by(category_id=cat_id)
+            query = Query(Category).filter_by(id=cat_id)
 
         if session:
             cat = query.with_session(session)
@@ -176,9 +177,9 @@ class DB:
     # TODO squash that three functions!
     def get_sub_category(self, sub_category_name=None, sub_cat_id=None, session=None):
         if sub_category_name:  # В разы лучше!
-            query = Query(SubCategory).filter_by(sub_category_name=sub_category_name)
+            query = Query(SubCategory).filter_by(name=sub_category_name)
         elif sub_cat_id:
-            query = Query(SubCategory).filter_by(sub_category_id=sub_cat_id)
+            query = Query(SubCategory).filter_by(id=sub_cat_id)
 
         if session:
             cat = query.with_session(session)
@@ -191,7 +192,7 @@ class DB:
     def get_state(self, tg_id, table):  # TODO add sessions
         with self.get_session(commit=False) as ses:
             l = ses.query(User, table.tg_state). \
-                join(table, User.user_id == table.user_id). \
+                join(table, User.id == table.user_id). \
                 filter(User.telegram_id == tg_id)
             l = l.one_or_none()
             if l:
@@ -200,7 +201,7 @@ class DB:
 
     def get_moderator(self, tg_id, session=None):
         l = session.query(User, Moderator). \
-            join(Moderator, User.user_id == Moderator.user_id). \
+            join(Moderator, User.id == Moderator.user_id). \
             filter(User.telegram_id==tg_id).one()
         return l
 
