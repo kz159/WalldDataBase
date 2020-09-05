@@ -12,6 +12,7 @@ from sqlalchemy.orm import relationship
 
 BASE = declarative_base()
 
+
 def get_psql_dsn(user, passw, host, port, db_name):
     return f'postgresql://{user}:{passw}@{host}:{port}/{db_name}'
 
@@ -27,6 +28,7 @@ class ModStates:
     making_tags = 7
     done = 8
 
+
 class AdminStates:
     available = 0
     raising_user = 1
@@ -36,9 +38,9 @@ class User(BASE):
     """
     Represents User
     """
-    __tablename__ = 'users'
-    user_id = Column(Integer, primary_key=True)
-    nickname = Column(String)
+    __tablename__ = 'user'
+    id = Column(Integer, primary_key=True)
+    name = Column(String)
     telegram_id = Column(Integer, unique=True)
     pics_uploaded = Column(Integer, default=0)
     register_date = Column(DateTime, server_default=func.now())
@@ -49,9 +51,9 @@ class Admin(BASE):
     Represents Admin user
     with their states etc
     """
-    __tablename__ = 'admins'
-    admin_id = Column(Integer, primary_key=True)
-    user_id = Column(Integer, ForeignKey('users.user_id'))
+    __tablename__ = 'admin'
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey('user.id'))
     tg_state = Column(Integer, default=0)
 
 
@@ -61,11 +63,11 @@ class Moderator(BASE):
     accept and decline pics
     will go here
     """
-    __tablename__ = 'moderators'
-    mod_id = Column(Integer, primary_key=True)
-    user_id = Column(Integer, ForeignKey('users.user_id'))
-    pics_accepted = Column(Integer, default=0) #  id of pics
-    json_review = Column(MutableDict.as_mutable(JSON)) # Хранить тут что ли всю инфу о пикче??
+    __tablename__ = 'moderator'
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey('user.id'))
+    pics_accepted = Column(Integer, default=0)  # id of pics
+    json_review = Column(MutableDict.as_mutable(JSON))  # Хранить тут что ли всю инфу о пикче??
     tg_state = Column(Integer, default=0)
     last_message = Column(Integer)
 
@@ -74,9 +76,9 @@ class Category(BASE):
     """
     Represents list of categories
     """
-    __tablename__ = "categories"
-    category_id = Column(Integer, primary_key=True)
-    category_name = Column(String, unique=True)
+    __tablename__ = "category"
+    id = Column(Integer, primary_key=True)
+    name = Column(String, unique=True)
     sub_categories = relationship("SubCategory", lazy='joined')
 
 
@@ -84,39 +86,39 @@ class SubCategory(BASE):
     """
     Represents list of subcategories for each category
     """
-    __tablename__ = "sub_categories"
-    sub_category_id = Column(Integer, primary_key=True)
-    category_id = Column(Integer, ForeignKey('categories.category_id'))
-    sub_category_name = Column(String, unique=True)
+    __tablename__ = "sub_category"
+    id = Column(Integer, primary_key=True)
+    name = Column(String, unique=True)
+    category_id = Column(Integer, ForeignKey('category.id'))
 
 
 class Tag(BASE):
-    __tablename__ = "tags"
-    tag_id = Column(Integer, primary_key=True)
-    tag_name = Column(String)
-    #tag_name = relationship("Picture", back_populates="tags")
+    __tablename__ = "tag"
+    id = Column(Integer, primary_key=True)
+    name = Column(String)
 
-assosiation = Table('assosiation',
-                    BASE.metadata,
-                    Column('tag_id', Integer, ForeignKey('tags.tag_id')),
-                    Column('pic_id', Integer, ForeignKey('pictures.pic_id'))
-)
+
+associated = Table('associated',
+                   BASE.metadata,
+                   Column('tag_id', Integer, ForeignKey('tag.id')),
+                   Column('pic_id', Integer, ForeignKey('picture.id')))
+
 
 class Picture(BASE):
     """
     Represents picture from our db
     """
-    __tablename__ = "pictures"
-    pic_id = Column(Integer, primary_key=True)
-    uploader_id = Column(Integer, ForeignKey('users.user_id'))
-    mod_review_id = Column(Integer, ForeignKey('moderators.mod_id'))
+    __tablename__ = "picture"
+    id = Column(Integer, primary_key=True)
+    uploader_id = Column(Integer, ForeignKey('user.id'))
+    mod_review_id = Column(Integer, ForeignKey('moderator.id'))
     service = Column(String)
     height = Column(Integer)
     width = Column(Integer)
     colours = Column(ARRAY(String))
-    category = Column(Integer, ForeignKey('categories.category_id'))
-    sub_category = Column(Integer, ForeignKey('sub_categories.sub_category_id'))
-    tags = relationship('Tag', secondary=assosiation)
+    category = Column(Integer, ForeignKey('category.id'))
+    sub_category = Column(Integer, ForeignKey('sub_category.id'))
+    tags = relationship('Tag', secondary=associated)
     source_url = Column(String)
     path = Column(String)
     url = Column(String)
@@ -126,24 +128,24 @@ class RejectedPicture(BASE):
     """
     Represents rejected pictures by moderators
     """
-    # TODO ПЕРЕИМЕНОВАТЬ В seenpictures что бы
-    #  сразу иметь ввиду что мы это уже видели
     __tablename__ = 'rejected_pictures'
     id = Column(Integer, primary_key=True)
-    mod_id = Column(Integer, ForeignKey('moderators.mod_id'))
-    uploader = Column(String) # User or crawler
+    mod_id = Column(Integer, ForeignKey('moderator.id'))
+    uploader = Column(String)  # User or crawler
     url = Column(String, nullable=False)
+
 
 class SeenPicture(BASE):
     """
     Represents url sources that
     was already seen by crawlers
     """
-    __tablename__ = 'seen_pictures'
+    __tablename__ = 'seen_picture'
     id = Column(Integer, primary_key=True)
     url = Column(String, nullable=False, unique=True)
 
-class PictureValid(BaseModel): # TODO ОТРАЗИТЬ ВСЕ ИЗМЕНЕНИЯ И УБРАТЬ ЭТО В ГРАББЕРА
+
+class PictureValid(BaseModel):  # TODO ОТРАЗИТЬ ВСЕ ИЗМЕНЕНИЯ И УБРАТЬ ЭТО В ГРАББЕРА
     service: str
     height: int
     width: int

@@ -10,6 +10,7 @@ import sqlalchemy as sa
 from sqlalchemy.orm import sessionmaker, Query
 from walld_db.models import (Category, Moderator, RejectedPicture, SeenPicture,
                              Tag, User, get_psql_dsn, Picture, SubCategory)
+from typing import List, Optional
 
 # TODO ATEXIT STUFF
 LOG = logging.getLogger(__name__)
@@ -65,6 +66,7 @@ class DB:
             return pics
 
     # @property https://www.depesz.com/2007/09/16/my-thoughts-on-getting-random-row/
+    # https://www.2ndquadrant.com/en/blog/tablesample-in-postgresql-9-5-2/
     # def random_pic(self):
     #     with self.get_session(commit=False) as ses:
     #         ses.
@@ -87,59 +89,75 @@ class DB:
             pics = [i[0] for i in pics] or []
             return pics
 
-# TODO GETTER SETTER FOR PICTURES
     def add_seen_pic(self, url):
         with self.get_session() as ses:
             ses.add(SeenPicture(url=url))
 
     @property
-    def users(self) -> list:
+    def users(self) -> List[str]:
         with self.get_session(commit=False) as ses:
             users = ses.query(User.nickname)
         return [i[0] for i in users]
 
     @property
-    def tags(self) -> list:
+    def tags(self) -> List:
         with self.get_session(commit=False) as ses:
             return ses.query(Tag).all()
 
     @property
-    def named_tags(self) -> list:
+    def named_tags(self) -> List:
         with self.get_session(commit=False) as ses:
             tags = ses.query(Tag.tag_name)
             return [i[0] for i in tags]
 
-    def get_pics(self, **questions):
+    def get_pics(self, cat: Optional[str] = None,  # TODO NOT STRINGS
+                 sub_cat: Optional[str] = None,
+                 tags: Optional[List[str]] = None):
 
-        cat = questions.get('category')
-        sub_cat = questions.get('sub_category')
-        tags = questions.get('tags')
-        colours = questions.get('colours')
+        # TODO colours = questions.get('colours')
 
         with self.get_session(commit=False) as ses:
             pics = ses.query(Picture)
             if cat:
                 cat = self.get_category(category_name=cat, session=ses)
-                pics.filter_by(category=getattr(cat, 'category_id', None))
+                pics.filter_by(category=getattr(cat, 'id', None))
             if sub_cat:
                 sub_cat = self.get_sub_category(sub_category_name=sub_cat)
-                pics.filter_by(sub_category=getattr(sub_cat, 'category_id', None))
+                pics.filter_by(sub_category=getattr(sub_cat, 'id', None))
+            if tags:
+                pics.filter(Picture.tags.in_(tags))  # TODO refactor after tags will be selectable
 
             # TODO colours, tags
 
         return pics.all()
 
     def get_tag(self, tag_id=None, tag_name=None, session=None):
-        if not session: # TODO Хуйня, переделай
-            with self.get_session(commit=False) as ses:
-                if tag_name:
-                    return ses.query(Tag).filter_by(tag_name=tag_name).one_or_none()
-                if tag_id:
-                    return ses.query(Tag).filter_by(tag_id=tag_id).one_or_none()
-        if tag_name:
-            return session.query(Tag).filter_by(tag_name=tag_name).one_or_none()
         if tag_id:
-            return session.query(Tag).filter_by(tag_id=tag_id).one_or_none()
+            query = Query(Tag).filter_by(tag_id=tag_id)
+        elif tag_name:
+            query = Query(Tag).filter_by(tag_name=tag_name)
+        else:
+            return
+
+        if session:
+            tag = query.with_session(session)
+        else:
+            with self.get_session(commit=False) as ses:
+                tag = query.with_session(session)
+
+        return tag.one_or_none()
+
+    def get_row(self, table, session=None, **kwargs):
+        query = Query(table)
+        query.filter_by(**kwargs)
+        if session:
+            result = query.with_session(session)
+        else:
+            with self.get_session(commit=False) as ses:
+                result = query.with_session(ses)
+
+        return result.one_or_none()
+
 
     def get_category(self, category_name=None, cat_id=None, session=None):
         if category_name:
@@ -152,10 +170,12 @@ class DB:
         else:
             with self.get_session(commit=False) as ses:
                 cat = query.with_session(ses)
+
         return cat.one_or_none()
-# TODO squash that three functions!
+
+    # TODO squash that three functions!
     def get_sub_category(self, sub_category_name=None, sub_cat_id=None, session=None):
-        if sub_category_name: # В разы лучше!
+        if sub_category_name:  # В разы лучше!
             query = Query(SubCategory).filter_by(sub_category_name=sub_category_name)
         elif sub_cat_id:
             query = Query(SubCategory).filter_by(sub_category_id=sub_cat_id)
@@ -168,10 +188,10 @@ class DB:
 
         return cat.one()
 
-    def get_state(self, tg_id, table): # TODO add sessions
+    def get_state(self, tg_id, table):  # TODO add sessions
         with self.get_session(commit=False) as ses:
-            l = ses.query(User, table.tg_state).\
-                join(table, User.user_id == table.user_id).\
+            l = ses.query(User, table.tg_state). \
+                join(table, User.user_id == table.user_id). \
                 filter(User.telegram_id == tg_id)
             l = l.one_or_none()
             if l:
@@ -179,8 +199,8 @@ class DB:
             return l
 
     def get_moderator(self, tg_id, session=None):
-        l = session.query(User, Moderator).\
-            join(Moderator, User.user_id == Moderator.user_id).\
+        l = session.query(User, Moderator). \
+            join(Moderator, User.user_id == Moderator.user_id). \
             filter(User.telegram_id==tg_id).one()
         return l
 
