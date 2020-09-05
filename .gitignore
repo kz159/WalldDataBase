@@ -3,3 +3,5 @@ build/
 dist/
 versions/
 .idea/
+.python-version
+walld_db.egg-info/
