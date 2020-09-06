@@ -3,7 +3,7 @@
 name: Update_all_docker_dev_images_with_fresh_lib
 on:
   push:
-    branches: [ dev ]
+    branches: [ master ]
          
 jobs:
   dispatch:
