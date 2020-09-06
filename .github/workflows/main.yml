@@ -3,13 +3,13 @@
 name: Update_all_docker_dev_images_with_fresh_lib
 on:
   push:
-    branches: [ dev ]
+    branches: [ master ]
          
 jobs:
   dispatch:
     strategy:
       matrix:
-        repo: ['kz159/grab_pexels', 'kz159/api.walld.net', 'walld-app/api.walld.net']
+        repo: ['walld-app/grab_pexels', 'walld-app/api.walld.net', 'walld-app/api.walld.net']
     runs-on: ubuntu-latest
     steps:
       - name: Repository Dispatch
