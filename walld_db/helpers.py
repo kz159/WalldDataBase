@@ -1,18 +1,20 @@
-'''
-Module with usefull classes for all microservices
-'''
+"""
+Module with useful classes for all microservices
+"""
 from contextlib import contextmanager
 import logging
 from time import sleep
-
+import sys
 import pika
 import sqlalchemy as sa
 from sqlalchemy.orm import sessionmaker, Query
 from walld_db.models import (Category, Moderator, RejectedPicture, SeenPicture,
-                             Tag, User, get_psql_dsn, Picture, SubCategory)
+                             Tag, User, get_psql_dsn, Picture)
+from walld_db.constants import DEFAULT_FORMATTER
 from typing import List, Optional
+from pathlib import Path
 
-# TODO ATEXIT STUFF
+# TODO AT EXIT STUFF
 LOG = logging.getLogger(__name__)
 
 
@@ -22,7 +24,7 @@ class DB:
         LOG.info('connecting to db...')
         self.engine = self.get_engine(dsn, echo=echo)
         self.session_maker = sessionmaker(bind=self.engine)
-        LOG.info('successfully connected to db!') # TODO неа, не нравки
+        LOG.info('successfully connected to db!')  # TODO неа, не нравки
 
     @staticmethod
     def get_engine(dsn, echo):
@@ -33,12 +35,12 @@ class DB:
         with self.engine.connect() as connection:
             yield connection
 
-    @contextmanager
+    @contextmanager  # TODO remove this bc we have connection.begin()
     def get_session(self, expire=False, commit=True):
         session = self.session_maker(expire_on_commit=expire)
         try:
             yield session
-        except ValueError: # TODO Более качественную обработку ошибок бы
+        except ValueError:  # TODO Более качественную обработку ошибок бы
             session.rollback()
         finally:
             if commit:
@@ -131,22 +133,6 @@ class DB:
 
         return pics.all()
 
-    def get_tag(self, tag_id=None, tag_name=None, session=None):
-        if tag_id:
-            query = Query(Tag).filter_by(tag_id=tag_id)
-        elif tag_name:
-            query = Query(Tag).filter_by(name=tag_name)
-        else:
-            return
-
-        if session:
-            tag = query.with_session(session)
-        else:
-            with self.get_session(commit=False) as ses:
-                tag = query.with_session(session)
-
-        return tag.one_or_none()
-
     def get_row(self, table, session=None, **kwargs):
         query = Query(table)
         query.filter_by(**kwargs)
@@ -159,35 +145,6 @@ class DB:
                 result = query.with_session(ses)
 
         return result.one_or_none()
-
-    def get_category(self, category_name=None, cat_id=None, session=None):
-        if category_name:
-            query = Query(Category).filter_by(name=category_name)
-        elif cat_id:
-            query = Query(Category).filter_by(id=cat_id)
-
-        if session:
-            cat = query.with_session(session)
-        else:
-            with self.get_session(commit=False) as ses:
-                cat = query.with_session(ses)
-
-        return cat.one_or_none()
-
-    # TODO squash that three functions!
-    def get_sub_category(self, sub_category_name=None, sub_cat_id=None, session=None):
-        if sub_category_name:  # В разы лучше!
-            query = Query(SubCategory).filter_by(name=sub_category_name)
-        elif sub_cat_id:
-            query = Query(SubCategory).filter_by(id=sub_cat_id)
-
-        if session:
-            cat = query.with_session(session)
-        else:
-            with self.get_session(commit=False) as ses:
-                cat = query.with_session(ses)
-
-        return cat.one()
 
     def get_state(self, tg_id, table):  # TODO add sessions
         with self.get_session(commit=False) as ses:
@@ -202,7 +159,7 @@ class DB:
     def get_moderator(self, tg_id, session=None):
         l = session.query(User, Moderator). \
             join(Moderator, User.id == Moderator.user_id). \
-            filter(User.telegram_id==tg_id).one()
+            filter(User.telegram_id == tg_id).one()
         return l
 
 
@@ -220,6 +177,7 @@ class Rmq:
         self.connect()
         self.channel.queue_declare(queue='check_out', durable=True)
         self.channel.queue_declare(queue='go_sql', durable=True)
+
         LOG.info('successfully connected to rmq')
 
     def get_message(self, amount: int, queue_name: str):
@@ -251,3 +209,23 @@ class Rmq:
     @property
     def durable(self):
         return pika.BasicProperties(delivery_mode=2)
+
+
+def logger_factory(name: str, level: str = 'INFO',
+                   formatter: str = DEFAULT_FORMATTER,
+                   log_to_file: Path = None, stream=sys.stdout):
+
+    _log_formatter = logging.Formatter(formatter)
+    log = logging.getLogger(name)
+
+    _stdout_handler = logging.StreamHandler(stream)
+    _stdout_handler.setFormatter(_log_formatter)
+
+    if log_to_file:
+        sys_file_handler = logging.FileHandler(log_to_file)
+        sys_file_handler.setFormatter(_log_formatter)
+        log.addHandler(sys_file_handler)
+
+    log.addHandler(_stdout_handler)
+    log.setLevel(level)
+    return log
