@@ -1,0 +1,21 @@
+# This is a basic workflow to help you get started with Actions
+
+name: Update_all_docker_dev_images_with_fresh_lib
+on:
+  push:
+    branches: [ dev ]
+         
+jobs:
+  dispatch:
+    strategy:
+      matrix:
+        repo: ['kz159/grab_pexels', 'kz159/api.walld.net', 'walld-app/api.walld.net']
+    runs-on: ubuntu-latest
+    steps:
+      - name: Repository Dispatch
+        uses: peter-evans/repository-dispatch@v1
+        with:
+          token: ${{ secrets.REPO_ACCESS }}
+          repository: ${{ matrix.repo }}
+          event-type: dev-db-updated
+
