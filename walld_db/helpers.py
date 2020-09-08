@@ -9,7 +9,7 @@ import pika
 import sqlalchemy as sa
 from sqlalchemy.orm import sessionmaker, Query
 from walld_db.models import (Category, Moderator, RejectedPicture, SeenPicture,
-                             Tag, User, get_psql_dsn, Picture)
+                             Tag, User, get_psql_dsn, Picture, SubCategory)
 from walld_db.constants import DEFAULT_FORMATTER
 from typing import List, Optional
 from pathlib import Path
@@ -112,19 +112,20 @@ class DB:
             tags = ses.query(Tag.name)
             return [i[0] for i in tags]
 
-    def get_pics(self, cat: Optional[str] = None,  # TODO NOT STRINGS
-                 sub_cat: Optional[str] = None,
-                 tags: Optional[List[str]] = None):
+    def get_pics(self, **questions):
+        cat = questions.get('category')
+        sub_cat = questions.get('sub_category')
+        tags = questions.get('tags')
 
         # TODO colours = questions.get('colours')
 
         with self.get_session(commit=False) as ses:
             pics = ses.query(Picture)
             if cat:
-                cat = self.get_category(category_name=cat, session=ses)
+                cat = self.get_row(Category, name=cat, session=ses)
                 pics.filter_by(category=getattr(cat, 'id', None))
             if sub_cat:
-                sub_cat = self.get_sub_category(sub_category_name=sub_cat)
+                sub_cat = self.get_row(SubCategory, name=sub_cat, session=ses)
                 pics.filter_by(sub_category=getattr(sub_cat, 'id', None))
             if tags:
                 pics.filter(Picture.tags.in_(tags))  # TODO refactor after tags will be selectable
