@@ -135,9 +135,8 @@ class DB:
         return pics.all()
 
     def get_row(self, table, session=None, **kwargs):
-        query = Query(table)
-        query.filter_by(**kwargs)
-
+        query = Query(table).filter_by(**kwargs)
+        
         if session:
             result = query.with_session(session)
 
