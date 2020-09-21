@@ -11,7 +11,7 @@ from sqlalchemy.orm import sessionmaker, Query
 from walld_db.models import (Category, Moderator, RejectedPicture, SeenPicture,
                              Tag, User, get_psql_dsn, Picture, SubCategory)
 from walld_db.constants import DEFAULT_FORMATTER
-from typing import List, Optional
+from typing import List
 from pathlib import Path
 
 # TODO AT EXIT STUFF
@@ -77,7 +77,7 @@ class DB:
     def picture_objects(self):
         with self.get_session(commit=False) as ses:
             pics = ses.query(Picture).all()
-            return pics
+        return pics
 
     @property
     def categories_objects(self):
@@ -85,7 +85,7 @@ class DB:
             return ses.query(Category).all()
 
     @property
-    def seen_pictures(self):
+    def seen_pictures(self) -> List[str]:
         with self.get_session(commit=False) as ses:
             pics = ses.query(SeenPicture.url).all()
             pics = [i[0] for i in pics] or []
@@ -102,17 +102,17 @@ class DB:
         return [i[0] for i in users]
 
     @property
-    def tags(self) -> List:
+    def tags(self) -> List[Tag]:
         with self.get_session(commit=False) as ses:
             return ses.query(Tag).all()
 
     @property
-    def named_tags(self) -> List:
+    def named_tags(self) -> List[str]:
         with self.get_session(commit=False) as ses:
             tags = ses.query(Tag.name)
             return [i[0] for i in tags]
 
-    def get_pics(self, **questions):
+    def get_pics(self, **questions) -> List[Picture]:
         cat = questions.get('category')
         sub_cat = questions.get('sub_category')
         tags = questions.get('tags')
@@ -121,22 +121,26 @@ class DB:
 
         with self.get_session(commit=False) as ses:
             pics = ses.query(Picture)
+
             if cat:
                 cat = self.get_row(Category, name=cat, session=ses)
-                pics.filter_by(category=getattr(cat, 'id', None))
+                pics = pics.filter_by(category=getattr(cat, 'id', None))
+
             if sub_cat:
                 sub_cat = self.get_row(SubCategory, name=sub_cat, session=ses)
-                pics.filter_by(sub_category=getattr(sub_cat, 'id', None))
-            if tags:
-                pics.filter(Picture.tags.in_(tags))  # TODO refactor after tags will be selectable
+                pics = pics.filter_by(sub_category=getattr(sub_cat, 'id', None))
 
+            if tags:
+                pics = pics.filter(Picture.tags.in_(tags))  # TODO refactor after tags will be selectable
+
+            LOG.debug(f'Got this query {str(pics)}')
             # TODO colours, tags
 
         return pics.all()
 
     def get_row(self, table, session=None, **kwargs):
         query = Query(table).filter_by(**kwargs)
-        
+
         if session:
             result = query.with_session(session)
 
@@ -157,6 +161,7 @@ class DB:
             return l
 
     def get_moderator(self, tg_id, session=None):
+        # if session:  # TODO
         l = session.query(User, Moderator). \
             join(Moderator, User.id == Moderator.user_id). \
             filter(User.telegram_id == tg_id).one()
